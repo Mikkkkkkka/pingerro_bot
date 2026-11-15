@@ -1,4 +1,4 @@
-from ping_bot.replies import mention_chunks
+from ping_bot.replies import mention_chunks, username_chunks
 from ping_bot.storage import Member
 
 
@@ -21,3 +21,15 @@ def test_mentions_are_split() -> None:
 
     assert len(chunks) == 2
     assert all(chunk.startswith("Внимание:\n") for chunk in chunks)
+
+
+def test_username_chunks_skip_members_without_username() -> None:
+    chunks = username_chunks(
+        [
+            Member(user_id=1, full_name="One", username="one"),
+            Member(user_id=2, full_name="Two", username=None),
+            Member(user_id=3, full_name="Three", username="three"),
+        ]
+    )
+
+    assert chunks == ["@one @three"]

@@ -11,6 +11,7 @@ from .storage import Member
 
 MAX_MENTIONS_PER_MESSAGE = 50
 MAX_TEXT_LENGTH = 3500
+MAX_COPY_TEXT_LENGTH = 256
 
 
 def mention_chunks(members: Iterable[Member]) -> list[str]:
@@ -45,6 +46,29 @@ def _format_mention(member: Member) -> tuple[str, int]:
     name = member.full_name or str(member.user_id)
     mention = f'<a href="tg://user?id={member.user_id}">{escape(name)}</a>'
     return mention, len(name)
+
+
+def username_chunks(members: Iterable[Member]) -> list[str]:
+    """Create clipboard-sized chunks of @usernames for CopyTextButton."""
+    chunks: list[str] = []
+    current: list[str] = []
+    current_length = 0
+
+    for member in members:
+        if not member.username:
+            continue
+        username = f"@{member.username}"
+        next_length = current_length + len(username) + (1 if current else 0)
+        if current and next_length > MAX_COPY_TEXT_LENGTH:
+            chunks.append(" ".join(current))
+            current = []
+            current_length = 0
+        current.append(username)
+        current_length += len(username) + (1 if len(current) > 1 else 0)
+
+    if current:
+        chunks.append(" ".join(current))
+    return chunks
 
 
 async def is_administrator(bot: Bot, chat_id: int, user_id: int) -> bool:

@@ -28,7 +28,11 @@ async def run(require_admin: bool = True) -> None:
         [
             BotCommand(command="add", description="Добавить себя в список"),
             BotCommand(command="addmany", description="Добавить участников по ID"),
-            BotCommand(command="all", description="Упомянуть участников"),
+            BotCommand(
+                command="non_pinging_all",
+                description="Перечислить участников, которых можно упомянуть",
+            ),
+            BotCommand(command="all_copy", description="Скопировать упоминания"),
         ]
     )
     try:
@@ -46,5 +50,7 @@ def main() -> None:
         help="Allow every group member to use commands normally limited to administrators.",
     )
     args = parser.parse_args()
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s"
+    )
     asyncio.run(run(require_admin=not args.dont_require_admin))

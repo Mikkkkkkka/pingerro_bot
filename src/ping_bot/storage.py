@@ -90,7 +90,7 @@ class Storage:
         self.connection.commit()
 
     def claim_cooldown(self, chat_id: int, cooldown_seconds: int) -> int:
-        """Claim the `/all` slot and return seconds to wait; zero means claimed."""
+        """Claim the `/non_pinging_all` slot and return seconds to wait; zero means claimed."""
         now = datetime.now(UTC)
         self.connection.execute("BEGIN IMMEDIATE")
         try:

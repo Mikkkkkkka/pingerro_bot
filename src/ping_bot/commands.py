@@ -7,7 +7,12 @@ from aiogram import Bot, F, Router
 from aiogram.enums import ChatType, ParseMode
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
-from aiogram.types import Message
+from aiogram.types import (
+    CopyTextButton,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+)
 
 from .messages import (
     ADDED_REPLY_MESSAGE,
@@ -17,11 +22,14 @@ from .messages import (
     ADD_MANY_LIMIT_MESSAGE,
     ADD_MANY_USAGE_MESSAGE,
     ADMIN_ONLY_MESSAGE,
+    COPY_BUTTON_TEXT,
+    COPY_USERNAMES_MESSAGE,
     NO_MEMBERS_MESSAGE,
+    NO_USERNAMES_MESSAGE,
     START_MESSAGE,
     cooldown_message,
 )
-from .replies import is_administrator, mention_chunks
+from .replies import is_administrator, mention_chunks, username_chunks
 from .storage import Storage
 from .tracking import remember_user
 
@@ -55,7 +63,9 @@ async def add_many(
     if message.from_user is None:
         await message.reply(ADMIN_ONLY_MESSAGE)
         return
-    if require_admin and not await is_administrator(bot, message.chat.id, message.from_user.id):
+    if require_admin and not await is_administrator(
+        bot, message.chat.id, message.from_user.id
+    ):
         await message.reply(ADMIN_ONLY_MESSAGE)
         return
 
@@ -73,7 +83,9 @@ async def add_many(
     unresolved_ids: list[int] = []
     for user_id in user_ids:
         try:
-            chat_member = await bot.get_chat_member(chat_id=message.chat.id, user_id=user_id)
+            chat_member = await bot.get_chat_member(
+                chat_id=message.chat.id, user_id=user_id
+            )
         except TelegramBadRequest:
             unresolved_ids.append(user_id)
         else:
@@ -84,7 +96,7 @@ async def add_many(
     await message.reply(ADDED_MANY_MESSAGE.format(count=len(user_ids)))
 
 
-@router.message(Command("all"), F.chat.type.in_(GROUP_TYPES))
+@router.message(Command("non_pinging_all"), F.chat.type.in_(GROUP_TYPES))
 async def mention_all(
     message: Message,
     bot: Bot,
@@ -97,7 +109,9 @@ async def mention_all(
     if message.from_user is None:
         await message.reply(ADMIN_ONLY_MESSAGE)
         return
-    if require_admin and not await is_administrator(bot, message.chat.id, message.from_user.id):
+    if require_admin and not await is_administrator(
+        bot, message.chat.id, message.from_user.id
+    ):
         await message.reply(ADMIN_ONLY_MESSAGE)
         return
 
@@ -114,6 +128,43 @@ async def mention_all(
     for part in mention_chunks(members):
         await message.answer(part, parse_mode=ParseMode.HTML)
         await asyncio.sleep(0.05)
+
+
+@router.message(Command("all_copy", "allc"), F.chat.type.in_(GROUP_TYPES))
+async def text_all(
+    message: Message,
+    bot: Bot,
+    member_storage: Storage,
+    require_admin: bool,
+) -> None:
+    remember_user(member_storage, message.chat.id, message.from_user)
+
+    if message.from_user is None:
+        await message.reply(ADMIN_ONLY_MESSAGE)
+        return
+    if require_admin and not await is_administrator(
+        bot, message.chat.id, message.from_user.id
+    ):
+        await message.reply(ADMIN_ONLY_MESSAGE)
+        return
+
+    chunks = username_chunks(member_storage.get_members(message.chat.id))
+    if not chunks:
+        await message.reply(NO_USERNAMES_MESSAGE)
+        return
+
+    for index, chunk in enumerate(chunks, start=1):
+        keyboard = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text=COPY_BUTTON_TEXT.format(number=index, total=len(chunks)),
+                        copy_text=CopyTextButton(text=chunk),
+                    )
+                ]
+            ]
+        )
+        await message.answer(COPY_USERNAMES_MESSAGE, reply_markup=keyboard)
 
 
 def _parse_user_ids(text: str | None) -> list[int] | None:
