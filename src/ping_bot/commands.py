@@ -24,6 +24,7 @@ from .messages import (
     ADMIN_ONLY_MESSAGE,
     COPY_BUTTON_TEXT,
     COPY_USERNAMES_MESSAGE,
+    HELP_MESSAGE,
     NO_MEMBERS_MESSAGE,
     NO_USERNAMES_MESSAGE,
     START_MESSAGE,
@@ -41,6 +42,11 @@ router = Router()
 @router.message(Command("start"))
 async def start(message: Message) -> None:
     await message.answer(START_MESSAGE)
+
+
+@router.message(Command("help"))
+async def help_command(message: Message) -> None:
+    await message.answer(HELP_MESSAGE)
 
 
 @router.message(Command("add"), F.chat.type.in_(GROUP_TYPES))

@@ -26,6 +26,7 @@ async def run(require_admin: bool = True) -> None:
     dispatcher.include_router(tracking_router)
     await bot.set_my_commands(
         [
+            BotCommand(command="help", description="Справка по командам"),
             BotCommand(command="add", description="Добавить себя в список"),
             BotCommand(command="addmany", description="Добавить участников по ID"),
             BotCommand(

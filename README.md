@@ -4,6 +4,8 @@ Telegram bot for group chats. It remembers non-bot users who write messages in e
 
 Telegram does not provide bots with a full member list. Therefore `/non_pinging_all` contains only members seen by the bot after it was added to the group. The bot must be a group administrator to receive all normal messages.
 
+Use `/help` in Telegram to see the bot's commands and limitations.
+
 ## Setup
 
 1. Create a bot with [@BotFather](https://t.me/BotFather) and put its token in `.env` (use `.env.example` as a template).
