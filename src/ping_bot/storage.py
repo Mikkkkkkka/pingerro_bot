@@ -480,7 +480,7 @@ class Storage:
         return cursor.rowcount == 1
 
     def claim_cooldown(self, chat_id: int, cooldown_seconds: int) -> int:
-        """Claim the `/non_pinging_all` slot and return seconds to wait; zero means claimed."""
+        """Claim the `/all` slot and return seconds to wait; zero means claimed."""
         now = datetime.now(UTC)
         self._begin_write()
         try:

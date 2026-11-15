@@ -174,7 +174,7 @@ async def add_many_group(message: Message, bot: Bot, member_storage: Storage) ->
     await message.reply(ADD_MANY_GROUP_ADDED_MESSAGE.format(name=group.name, count=len(user_ids)))
 
 
-@router.message(Command("non_pinging_all"), F.chat.type.in_(GROUP_TYPES))
+@router.message(Command("all"), F.chat.type.in_(GROUP_TYPES))
 async def mention_all(
     message: Message,
     bot: Bot,

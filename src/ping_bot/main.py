@@ -30,8 +30,8 @@ async def run(require_admin: bool = True) -> None:
             BotCommand(command="add", description="Добавить себя в список"),
             BotCommand(command="addmany", description="Добавить участников по ID"),
             BotCommand(
-                command="non_pinging_all",
-                description="Перечислить участников, которых можно упомянуть",
+                command="all",
+                description="Упомянуть известных участников",
             ),
             BotCommand(command="all_copy", description="Скопировать упоминания"),
             BotCommand(command="group", description="Показать участников группы"),
