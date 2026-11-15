@@ -5,6 +5,48 @@ from secrets import token_urlsafe
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any, Iterable
+
+
+class DatabaseConnection:
+    """Small compatibility layer for SQLite and PostgreSQL connections."""
+
+    def __init__(self, database_url: str | Path) -> None:
+        database_url = str(database_url)
+        self.is_postgres = database_url.startswith(("postgresql://", "postgres://"))
+        if self.is_postgres:
+            import psycopg
+            from psycopg.rows import dict_row
+
+            self.raw = psycopg.connect(database_url, row_factory=dict_row)
+        else:
+            path = _sqlite_path(database_url)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            self.raw = sqlite3.connect(path)
+            self.raw.row_factory = sqlite3.Row
+            self.raw.execute("PRAGMA foreign_keys = ON")
+
+    def execute(self, query: str, parameters: tuple[Any, ...] = ()) -> Any:
+        return self.raw.execute(self._query(query), parameters)
+
+    def executemany(self, query: str, parameters: Iterable[tuple[Any, ...]]) -> Any:
+        if self.is_postgres:
+            with self.raw.cursor() as cursor:
+                cursor.executemany(self._query(query), parameters)
+                return cursor
+        return self.raw.executemany(query, parameters)
+
+    def commit(self) -> None:
+        self.raw.commit()
+
+    def rollback(self) -> None:
+        self.raw.rollback()
+
+    def close(self) -> None:
+        self.raw.close()
+
+    def _query(self, query: str) -> str:
+        return query.replace("?", "%s") if self.is_postgres else query
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,19 +76,15 @@ class GroupDeletion:
 
 
 class Storage:
-    def __init__(self, database_path: Path) -> None:
-        database_path.parent.mkdir(parents=True, exist_ok=True)
-        self.connection = sqlite3.connect(database_path)
-        self.connection.row_factory = sqlite3.Row
-        self.connection.execute("PRAGMA foreign_keys = ON")
+    def __init__(self, database_url: str | Path) -> None:
+        self.connection = DatabaseConnection(database_url)
         self._create_schema()
 
     def _create_schema(self) -> None:
-        self.connection.executescript(
-            """
+        schema = """
             CREATE TABLE IF NOT EXISTS members (
-                chat_id INTEGER NOT NULL,
-                user_id INTEGER NOT NULL,
+                chat_id BIGINT NOT NULL,
+                user_id BIGINT NOT NULL,
                 full_name TEXT NOT NULL,
                 username TEXT,
                 last_seen_at TEXT NOT NULL,
@@ -54,23 +92,23 @@ class Storage:
             );
 
             CREATE TABLE IF NOT EXISTS chat_cooldowns (
-                chat_id INTEGER PRIMARY KEY,
+                chat_id BIGINT PRIMARY KEY,
                 last_all_at TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS interest_groups (
-                chat_id INTEGER NOT NULL,
+                chat_id BIGINT NOT NULL,
                 group_key TEXT NOT NULL,
                 name TEXT NOT NULL,
-                creator_user_id INTEGER NOT NULL,
+                creator_user_id BIGINT NOT NULL,
                 created_at TEXT NOT NULL,
                 PRIMARY KEY (chat_id, group_key)
             );
 
             CREATE TABLE IF NOT EXISTS interest_group_members (
-                chat_id INTEGER NOT NULL,
+                chat_id BIGINT NOT NULL,
                 group_key TEXT NOT NULL,
-                user_id INTEGER NOT NULL,
+                user_id BIGINT NOT NULL,
                 PRIMARY KEY (chat_id, group_key, user_id),
                 FOREIGN KEY (chat_id, group_key)
                     REFERENCES interest_groups (chat_id, group_key)
@@ -79,21 +117,23 @@ class Storage:
 
             CREATE TABLE IF NOT EXISTS group_delete_confirmations (
                 token TEXT PRIMARY KEY,
-                chat_id INTEGER NOT NULL,
+                chat_id BIGINT NOT NULL,
                 group_key TEXT NOT NULL,
-                requester_user_id INTEGER NOT NULL,
+                requester_user_id BIGINT NOT NULL,
                 expires_at TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS group_join_confirmations (
                 token TEXT PRIMARY KEY,
-                chat_id INTEGER NOT NULL,
+                chat_id BIGINT NOT NULL,
                 group_key TEXT NOT NULL,
-                requester_user_id INTEGER NOT NULL,
+                requester_user_id BIGINT NOT NULL,
                 expires_at TEXT NOT NULL
             );
             """
-        )
+        for statement in schema.split(";"):
+            if statement.strip():
+                self.connection.execute(statement)
         self.connection.commit()
 
     def upsert_member(
@@ -236,7 +276,7 @@ class Storage:
             SELECT name, creator_user_id AS owner_user_id
             FROM interest_groups
             WHERE chat_id = ?
-            ORDER BY name COLLATE NOCASE
+            ORDER BY lower(name)
             """,
             (chat_id,),
         ).fetchall()
@@ -328,7 +368,7 @@ class Storage:
         return token
 
     def confirm_group_join(self, token: str, owner_user_id: int) -> GroupDeletion:
-        self.connection.execute("BEGIN IMMEDIATE")
+        self._begin_write()
         try:
             confirmation = self.connection.execute(
                 """
@@ -380,7 +420,7 @@ class Storage:
             raise
 
     def confirm_group_deletion(self, token: str, requester_user_id: int) -> GroupDeletion:
-        self.connection.execute("BEGIN IMMEDIATE")
+        self._begin_write()
         try:
             confirmation = self.connection.execute(
                 """
@@ -442,7 +482,7 @@ class Storage:
     def claim_cooldown(self, chat_id: int, cooldown_seconds: int) -> int:
         """Claim the `/non_pinging_all` slot and return seconds to wait; zero means claimed."""
         now = datetime.now(UTC)
-        self.connection.execute("BEGIN IMMEDIATE")
+        self._begin_write()
         try:
             row = self.connection.execute(
                 "SELECT last_all_at FROM chat_cooldowns WHERE chat_id = ?", (chat_id,)
@@ -470,6 +510,9 @@ class Storage:
     def close(self) -> None:
         self.connection.close()
 
+    def _begin_write(self) -> None:
+        self.connection.execute("BEGIN" if self.connection.is_postgres else "BEGIN IMMEDIATE")
+
 
 def _utc_now() -> str:
     return datetime.now(UTC).isoformat()
@@ -477,3 +520,10 @@ def _utc_now() -> str:
 
 def _group_key(name: str) -> str:
     return " ".join(name.split()).casefold()
+
+
+def _sqlite_path(database_url: str) -> Path:
+    prefix = "sqlite:///"
+    if database_url.startswith(prefix):
+        return Path(database_url.removeprefix(prefix))
+    return Path(database_url)
