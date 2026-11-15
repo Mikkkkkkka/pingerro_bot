@@ -34,6 +34,13 @@ async def run(require_admin: bool = True) -> None:
                 description="Перечислить участников, которых можно упомянуть",
             ),
             BotCommand(command="all_copy", description="Скопировать упоминания"),
+            BotCommand(command="group", description="Показать участников группы"),
+            BotCommand(command="add_group", description="Вступить в группу"),
+            BotCommand(command="addmany_group", description="Добавить IDs в свою группу"),
+            BotCommand(command="groups", description="Список групп"),
+            BotCommand(command="remove_group", description="Выйти из группы"),
+            BotCommand(command="delete_group", description="Удалить свою группу"),
+            BotCommand(command="group_copy", description="Скопировать группу"),
         ]
     )
     try:
