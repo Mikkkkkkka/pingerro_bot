@@ -31,7 +31,7 @@ Use `/help` in Telegram to see the bot's commands and limitations.
 
 ## Behaviour
 
-- The database is SQLite and defaults to `data/ping_bot.sqlite3`.
+- SQLite is the default database at `data/ping_bot.sqlite3`. To use PostgreSQL, set `PING_BOT_DATABASE_URL=postgresql://user:password@host:5432/database` in `.env`; it takes precedence over `PING_BOT_DATABASE_PATH`. The common `DATABASE_URL` name is also accepted.
 - Each `(chat_id, user_id)` pair is unique. A later message refreshes the display name, username and `last_seen_at`.
 - `/non_pinging_all` uses `@username` when it is known. Users without a username are mentioned via an ID-based inline mention instead.
 - Before `/non_pinging_all`, `/all_copy`, `/group` and `/group_copy`, the bot tries to refresh members missing a username via `getChatMember` when Telegram permits it.

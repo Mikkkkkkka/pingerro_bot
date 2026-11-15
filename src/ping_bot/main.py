@@ -15,7 +15,7 @@ from .tracking import router as tracking_router
 
 async def run(require_admin: bool = True) -> None:
     settings = Settings.from_environment()
-    storage = Storage(settings.database_path)
+    storage = Storage(settings.database_url)
     bot = Bot(settings.token)
     dispatcher = Dispatcher(
         member_storage=storage,
