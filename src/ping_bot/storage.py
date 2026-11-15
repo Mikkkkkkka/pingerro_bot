@@ -75,6 +75,20 @@ class Storage:
         ).fetchall()
         return [Member(**dict(row)) for row in rows]
 
+    def add_members_by_ids(self, chat_id: int, user_ids: list[int]) -> None:
+        """Add IDs received from an administrator without replacing known names."""
+        seen_at = _utc_now()
+        self.connection.executemany(
+            """
+            INSERT INTO members (chat_id, user_id, full_name, username, last_seen_at)
+            VALUES (?, ?, ?, NULL, ?)
+            ON CONFLICT(chat_id, user_id) DO UPDATE SET
+                last_seen_at = excluded.last_seen_at
+            """,
+            [(chat_id, user_id, f"Пользователь {user_id}", seen_at) for user_id in user_ids],
+        )
+        self.connection.commit()
+
     def claim_cooldown(self, chat_id: int, cooldown_seconds: int) -> int:
         """Claim the `/all` slot and return seconds to wait; zero means claimed."""
         now = datetime.now(UTC)

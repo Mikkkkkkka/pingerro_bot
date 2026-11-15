@@ -20,12 +20,14 @@ class Settings:
         if not token:
             raise RuntimeError("TELEGRAM_BOT_TOKEN environment variable is not set")
 
-        cooldown = int(getenv("PING_BOT_COOLDOWN_SECONDS", "300"))
+        cooldown = int(getenv("PING_BOT_COOLDOWN_SECONDS", "10"))
         if cooldown < 0:
             raise RuntimeError("PING_BOT_COOLDOWN_SECONDS must not be negative")
 
         return cls(
             token=token,
-            database_path=Path(getenv("PING_BOT_DATABASE_PATH", "data/ping_bot.sqlite3")),
+            database_path=Path(
+                getenv("PING_BOT_DATABASE_PATH", "data/ping_bot.sqlite3")
+            ),
             cooldown_seconds=cooldown,
         )
